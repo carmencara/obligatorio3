@@ -12,7 +12,7 @@
 #include <iostream>
 #include <cmath>
 #include <fstream>     // Para trabajar con ficheros
-#include <ccomplex>    // Para trabajar con números complejos
+#include <complex>     // Para trabajar con números complejos
 
 #define N 1000         // Tamaño del retículo espacial
 #define PI 3.141593
@@ -32,7 +32,7 @@ int main()
 
     int ciclos;                 // Número de oscilaciones completas de la función de onda
     int iteraciones;            // Número de iteraciones que se realizan del algoritmo
-    int j,n;                    // Contadores
+    int j,n,k;                  // Contadores
 
     double lambda;              // Cte de proporcionalidad para la energía del fotón incidente
     double s_tilde;             // s/h^2=1/4k0_tilde^2
@@ -40,7 +40,8 @@ int main()
     double V[N+1];              // Potencial, es lambda*k0_tilde^2 si j\in[2N/5,3N/5]
     double Aplus, Aminus;       // Para calcular alpha, Aplus=1, Aminus=1
     double norma_phi;           // Norma de la función de onda
-    double norma_V;             // Norma del potencial
+    double norma_txt;
+    double densidad;            // Densidad de probabilidad: |phi|^2
 
     complex<double> phi[N+1];   // Función de onda
     complex<double> xi[N+1];    // phi[j,n+1]=xi[j,n]-phi[j,n]
@@ -50,14 +51,18 @@ int main()
     complex<double> b[N];       // b[j]=2i*phi[j]/s_tilde
     complex<double> A0[N];      // Para calcular alpha, A0[j]=-2+2i/s_tilde-V[j]
 
-    ofstream fich_norma;        // Fichero para guardar la norma de phi
+    ofstream fich_densidad;     // Fichero para guardar la densidad de probabilidad
+    ofstream fich_norma;        // Fichero para guardar la norma de phi (debe ser 1)
+    ofstream fich_potencial;    // Fichero para guardar la forma del potencial
 
 
     // ------------------------ INICIALIZACIÓN ------------------------
 
+    fich_densidad.open("densidad.txt");
     fich_norma.open("norma.txt");
+    fich_potencial.open("potencial.txt");
 
-    lambda = 0.3;
+    lambda = 5;
     ciclos = 50;                // Restringido a 1,...,N/4
     k0_tilde = 2*PI*ciclos/N;
     s_tilde = 1/(4*k0_tilde*k0_tilde);
@@ -67,8 +72,9 @@ int main()
     {
         if (j>(2*N/5)&&j<(3*N/5)) V[j] = lambda*k0_tilde*k0_tilde;
         else V[j] = 0.0;
+        fich_potencial << j << " " << V[j] << endl;
     }
-
+    
     // Función de onda inicial y su norma (con condiciones de contorno)
     phi[0] = (0.0, 0.0);
     phi[N] = (0.0, 0.0);
@@ -79,10 +85,25 @@ int main()
         norma_phi = norma_phi + CalculaNorma2(phi[j]);
     }
     norma_phi = sqrt(norma_phi);
-    fich_norma << 0 << ", " << norma_phi << endl;
 
     // Normalizar la función de onda inicial
     for(j=1; j<N; j++) phi[j]=phi[j]/norma_phi;
+
+    norma_txt=0.0;
+    // Escribir la densidad de probabilidad en "densidad.txt"
+    for(j=0; j<=N; j++)
+    {
+        densidad = CalculaNorma2(phi[j]);
+        fich_densidad << j << " " << densidad << endl;
+        norma_txt = norma_txt + densidad;
+    }
+    fich_densidad << endl;
+
+    // Escribir la norma inicial en "norma.txt" (ahora debe ser 1)
+    fich_norma << 0 << " " << sqrt(norma_txt) << endl;
+
+    fich_densidad.flush();
+    fich_norma.flush();
 
 
     // ----------------------- CÁLCULO DE ALPHA -----------------------
@@ -94,46 +115,55 @@ int main()
     // Calcular las A
     Aplus = 1.0;
     Aminus = 1.0;
-    for(j=1; j<N; j++) A0[j] = (-2-V[j], 2/s_tilde);
+    for(j=1; j<N; j++) A0[j] = complex<double>(-2.0-V[j], 2.0/s_tilde);
 
-    /* Calcular alpha y gamma empezando en N-1
-                gamma[j]=1/(A0[j]+Aplus*alpha[j])
-                alpha[j-1]=-Aminus*gamma[j] */
+    // Calcular alpha y gamma empezando en N-1
     gamma[N-1] = 1.0/A0[N-1];
     for(j=N-2; j>=0; j--)
     {
         alpha[j] = -Aminus*gamma[j+1];
-        gamma[j] = 1.0/(A0[j]+Aplus*alpha[j]);
+        gamma[j] = 1.0/(A0[j]+alpha[j]);
     }
 
 
     // -------------------------- ALGORITMO ---------------------------
 
-    iteraciones = 1000;
-    for(n=1; n<=iteraciones; n++)
-    {
+    beta[N]=0.0;
+    iteraciones = 500;
+    for(n=1;n<=iteraciones;n++){
+        
         // CÁLCULO DE B: b[j]=4i*phi[j]/s_tilde
-        for(j=1; j<N; j++) b[j] = (0.0, 4.0*phi[j]/s_tilde);
+        for(j=1;j<N;j++) b[j] = complex<double>(0,4)*phi[j]/s_tilde;
 
         // CÁLCULO DE BETA: beta[j-1]=gamma[j]*(b[j]-Aplus*beta[j])
-        for(j=N-2; j>=0; j--) beta[j] = gamma[j+1]*(b[j+1]-Aplus*beta[j+1]);
+        for(j=N-2;j>=0;j--) beta[j] = gamma[j+1]*(b[j+1]-beta[j+1]);
 
         // CÁLCULO DE XI: xi[j+1]=alpha[j]*xi[j]+beta[j]
-        xi[0] = 0.0;
-        xi[N] = 0.0;
-        for (j=1; j<N; j++) xi[j] = alpha[j-1]*xi[j-1]+beta[j-1];
+        xi[0] = 0;
+        xi[N] = 0;
+        for(j=1;j<N;j++) xi[j] = alpha[j-1]*xi[j-1]+beta[j-1];
 
         // CÁLCULO DE PHI: phi[j,n+1]=xi[j,n]-phi[j,n]
-        for(j=1; j<N; j++) phi[j] = xi[j]-phi[j];
-        
-        // GUARDO LA NORMA DE PHI
-        norma_phi = 0.0;
-        for(j=0; j<=N; j++) norma_phi = norma_phi + CalculaNorma2(phi[j]);
-        norma_phi = sqrt(norma_phi);
-        fich_norma << 0 << ", " << norma_phi << endl;
+        norma_phi = 0;
+        for(k=1;k<N;k++) phi[k] = xi[k]-phi[k];
+
+        // GUARDAR LA DENSIDAD Y NORMA EN CADA ITERACIÓN
+        norma_txt = 0;
+        for(k=0;k<=N;k++){
+            densidad = CalculaNorma2(phi[k]);
+            fich_densidad << k << " " << densidad << endl;
+            norma_txt = norma_txt+densidad;
+        }
+        fich_densidad<<endl;
+        fich_norma << n << " "<<sqrt(norma_txt)<< endl;
+
+        fich_densidad.flush();
+        fich_norma.flush();
     }
 
+    fich_densidad.close();
     fich_norma.close();
+    fich_potencial.close();
     return 0;
 }
 
@@ -148,8 +178,8 @@ complex<double> CalculaPhi(int j, double k0_tilde)
     double aux;
     complex<double> componente_phi;
 
-    aux = exp(-8*(4*j-N)*(4*j-N)/(N*N));
-    componente_phi = aux*(cos(k0_tilde*j), sin(k0_tilde*j));    
+    aux = exp(-8.0*(4*j-N)*(4*j-N)/(1.0*N*N));
+    componente_phi = complex<double>(cos(k0_tilde*j),sin(k0_tilde*j))*aux;    
 
     return componente_phi;
 }

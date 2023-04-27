@@ -45,7 +45,8 @@ import io
 
 # Parámetros
 # ========================================
-file_in = "schrodinger_data.dat" # Nombre del fichero de datos
+file_in = "densidad.txt" # Nombre del fichero de datos
+file_in2 = "potencial.txt" # Fichero donde se guarda el potencial
 file_out = "schrodinger" # Nombre del fichero de salida (sin extensión)
 interval = 100 # Tiempo entre fotogramas en milisegundos
 save_to_file = True # False: muestra la animación por pantalla,
@@ -58,6 +59,10 @@ dpi = 150 # Calidad del vídeo de salida (dots per inch)
 # Lee el fichero a una cadena de texto
 with open(file_in, "r") as f:
     data_str = f.read()
+
+data1 = np.loadtxt('potencial.txt')
+pot = data1[:,1]
+pos = data1[:,0]
 
 # Inicializa la lista con los datos de cada fotograma.
 # frames_data[j] contiene los datos del fotograma j-ésimo
@@ -110,6 +115,9 @@ def update(j_frame, frames_data, lines):
         lines[j_curve].set_data(xs, ys)
 
     return lines
+
+# Plotear el potencial
+ax.plot(pos, pot, linestyle='-', color='#EC118C')
 
 # Calcula el nº de frtogramas o instantes de tiempo
 nframes = len(frames_data)
