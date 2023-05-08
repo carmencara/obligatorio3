@@ -62,7 +62,7 @@ int main()
     fich_norma.open("norma.txt");
     fich_potencial.open("potencial.txt");
 
-    lambda = 5;
+    lambda = 0.3;
     ciclos = 50;                // Restringido a 1,...,N/4
     k0_tilde = 2*PI*ciclos/N;
     s_tilde = 1/(4*k0_tilde*k0_tilde);

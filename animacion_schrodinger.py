@@ -75,7 +75,7 @@ for frame_data_str in data_str.split("\n\n"):
     # (io.StringIO permite leer una cadena de texto como si fuera un
     # fichero, lo que nos permite usar la función loadtxt de numpy)
     if len(frame_data_str) > 0:
-        frame_data = np.loadtxt(io.StringIO(frame_data_str), delimiter=",").T
+        frame_data = np.loadtxt(io.StringIO(frame_data_str), delimiter=" ").T
 
         # Añade los datos del fotograma (la configuración del sistema)
         # a la lista
@@ -119,8 +119,12 @@ def update(j_frame, frames_data, lines):
 # Plotear el potencial
 ax.plot(pos, pot, linestyle='-', color='#EC118C')
 
-# Calcula el nº de frtogramas o instantes de tiempo
+# Calcula el nº de fotogramas o instantes de tiempo
 nframes = len(frames_data)
+
+# Añadir título y ajustar eje y
+ax.set_title('$\lambda=5$')
+ax.set_ylim([0, 0.03])
 
 # Si hay más de un instante de tiempo, genera la animación
 if nframes > 1:
